@@ -758,21 +758,19 @@
 
 <div id="print-report-root"></div>
 
-<!-- Firebase (Realtime Database) - stores task plans + uploaded files in the cloud so any device can see them -->
-<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+<!-- 腾讯云开发 CloudBase (PostgreSQL / PostgREST) - stores task plans + uploaded files in the cloud so any device can see them -->
+<script src="https://static.cloudbase.net/cloudbase-js-sdk/3.0.1/cloudbase.full.js"></script>
 <script>
-  var firebaseConfig = {
-    apiKey: "AIzaSyARvw0MGUXYObnkVWcXr3taK4poSis1eMg",
-    authDomain: "uwonacedmicportalsystem.firebaseapp.com",
-    databaseURL: "https://uwonacedmicportalsystem-default-rtdb.firebaseio.com",
-    projectId: "uwonacedmicportalsystem",
-    storageBucket: "uwonacedmicportalsystem.firebasestorage.app",
-    messagingSenderId: "996846237919",
-    appId: "1:996846237919:web:a133a4c115a6a68b1b916a"
-  };
-  firebase.initializeApp(firebaseConfig);
-  var fbDb = firebase.database();
+  var cbApp = cloudbase.init({
+    env: "uwonportaldb-d9ggocoim689b05af",
+    region: "ap-shanghai",
+    accessKey: "eyJhbGciOiJSUzI1NiIsImtpZCI6IjY0OGI2NzVkLWVkNDYtNDM4OS05OTI1LWZiM2Y4MjdmYmYzNyJ9.eyJpc3MiOiJodHRwczovL3V3b25wb3J0YWxkYi1kOWdnb2NvaW02ODliMDVhZi5hcC1zaGFuZ2hhaS50Y2ItYXBpLnRlbmNlbnRjbG91ZGFwaS5jb20iLCJzdWIiOiJhbm9uIiwiYXVkIjoidXdvbnBvcnRhbGRiLWQ5Z2dvY29pbTY4OWIwNWFmIiwiZXhwIjo0MDkzMDYyNTUwLCJpYXQiOjE3ODkzNzkzNTAsIm5vbmNlIjoiOVNxU0QyYWhUa0c3ajFRYkQ4cVZqQSIsImF0X2hhc2giOiI5U3FTRDJhaFRrRzdqMVFiRDhxVmpBIiwibmFtZSI6IkFub255bW91cyIsInNjb3BlIjoiYW5vbnltb3VzIiwicHJvamVjdF9pZCI6InV3b25wb3J0YWxkYi1kOWdnb2NvaW02ODliMDVhZiIsIm1ldGEiOnsicGxhdGZvcm0iOiJQdWJsaXNoYWJsZUtleSJ9LCJyb2xlIjoiYW5vbiIsImlzX2Fub255bW91cyI6dHJ1ZSwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiYW5vbnltb3VzIiwicHJvdmlkZXJzIjpbImFub255bW91cyJdfSwidXNlcl9tZXRhZGF0YSI6eyJuYW1lIjoiQW5vbnltb3VzIn0sInVzZXJfdHlwZSI6IiIsImNsaWVudF90eXBlIjoiY2xpZW50X3VzZXIiLCJpc19zeXN0ZW1fYWRtaW4iOmZhbHNlfQ.a72MF0bB3AAkNtqtgHSJ8LodlXgZlUPgIPq9ySy06CAat0UOkRYxtjyIx5HBnv7mELMUp7Ki1owOJ9jzSKPEAm9sc9UrQOki9_FGmorHEQ7_innaqMOW_C6xnkGw4PzNZKEEuZQz_WNGVb1-_T1FLB7qK5mUxbt_Kf4Yb-XaxBtQzpASymTkj2i6UdyfP0f8mPw4fuSv2U-54UUzJg0gUYWjKlDKDqG2FadBlIv36QlMO7RvG8H8H43VtAURm48wXhUKtZ_yzuJv3IIHAn_o7evDMrIaoU7BW1xFJsTqvjKtZ9fV-F5z0nO_tFfTp09vqCoCKW0jV_R-ai8ck19vPQ"
+  });
+  // Sign in anonymously once so requests carry a valid role for the RLS policy.
+  var cbAuthReady = cbApp.auth.signInAnonymously().catch(function(err){
+    console.error("CloudBase anonymous sign-in failed:", err);
+  });
+  var cbDb = cbApp.rdb();
 </script>
 
 <script>
@@ -901,9 +899,11 @@
   }
 
   // ---------- plan storage (per user, per day, per module; cleared when "完成" is clicked) ----------
-  // Stored in Firebase Realtime Database so the same student's plan is visible from any device.
-  function fbKey(s){ return String(s || "").replace(/[.#$\[\]\/]/g, "_"); }
-  function planPath(){ return "plans/" + fbKey(currentMode) + "/" + fbKey(currentUser()) + "/" + fbKey(todayStr()); }
+  // Stored in a "plans" table in 腾讯云开发 CloudBase (PostgreSQL) so the same student's plan is visible from any device.
+  function planRowId(){
+    // Cached id of the matching row once we've seen it, so savePlan can update instead of insert.
+    return planRowId._id;
+  }
 
   function defaultRow(){
     return { minutes:0, task:"", subOption:"", detailText:"", customText:"", subjectText:"", dueDate:"", taskFiles:[], remaining:0, running:false, done:false, note:"", noteImages:[] };
@@ -932,8 +932,18 @@
 
   // Returns a Promise resolving to the plan rows for the current user/mode/day.
   function loadPlan(){
-    return fbDb.ref(planPath()).once("value").then(function(snap){
-      return normalizePlanRows(snap.val());
+    var myMode = currentMode, myUser = currentUser(), myDate = todayStr();
+    return cbAuthReady.then(function(){
+      return cbDb.from("plans")
+        .select("id,data")
+        .eq("mode", myMode)
+        .eq("student", myUser)
+        .eq("date", myDate);
+    }).then(function(res){
+      if(res.error) throw res.error;
+      var row = (res.data && res.data.length) ? res.data[0] : null;
+      planRowId._id = row ? row.id : null;
+      return normalizePlanRows(row ? row.data : null);
     });
   }
 
@@ -944,7 +954,18 @@
     var ind = document.getElementById("save-indicator");
     ind.textContent = "正在保存…";
     var myGen = ++saveGeneration;
-    fbDb.ref(planPath()).set(planState).then(function(){
+    var myMode = currentMode, myUser = currentUser(), myDate = todayStr();
+    var payload = { mode: myMode, student: myUser, date: myDate, data: planState };
+
+    var req = planRowId()
+      ? cbDb.from("plans").update({ data: planState }).eq("id", planRowId())
+      : cbDb.from("plans").insert(payload).select("id");
+
+    req.then(function(res){
+      if(res.error) throw res.error;
+      if(!planRowId() && res.data && res.data.length){
+        planRowId._id = res.data[0].id; // remember the new row's id for future saves
+      }
       if(myGen !== saveGeneration) return; // a newer save already superseded this one
       ind.textContent = "已自动保存";
       clearTimeout(ind._t);
@@ -1466,7 +1487,12 @@
 
     // Once finished, this plan is done: clear it so the next visit to the planner starts blank.
     stopAllTimers();
-    fbDb.ref(planPath()).remove().catch(function(err){ console.error("clear plan failed:", err); });
+    if(planRowId()){
+      cbDb.from("plans").delete().eq("id", planRowId())
+        .then(function(res){ if(res.error) console.error("clear plan failed:", res.error); })
+        .catch(function(err){ console.error("clear plan failed:", err); });
+      planRowId._id = null;
+    }
     planState = freshPlan();
     renderTbody();
 

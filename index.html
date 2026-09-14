@@ -758,19 +758,16 @@
 
 <div id="print-report-root"></div>
 
-<!-- 腾讯云开发 CloudBase (PostgreSQL / PostgREST) - stores task plans + uploaded files in the cloud so any device can see them -->
-<script src="https://static.cloudbase.net/cloudbase-js-sdk/3.0.1/cloudbase.full.js"></script>
+<!-- Supabase - stores task plans + uploaded files in the cloud so any device can see them -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
-  var cbApp = cloudbase.init({
-    env: "uwonportaldb-d9ggocoim689b05af",
-    region: "ap-shanghai",
-    accessKey: "eyJhbGciOiJSUzI1NiIsImtpZCI6IjY0OGI2NzVkLWVkNDYtNDM4OS05OTI1LWZiM2Y4MjdmYmYzNyJ9.eyJpc3MiOiJodHRwczovL3V3b25wb3J0YWxkYi1kOWdnb2NvaW02ODliMDVhZi5hcC1zaGFuZ2hhaS50Y2ItYXBpLnRlbmNlbnRjbG91ZGFwaS5jb20iLCJzdWIiOiJhbm9uIiwiYXVkIjoidXdvbnBvcnRhbGRiLWQ5Z2dvY29pbTY4OWIwNWFmIiwiZXhwIjo0MDkzMDYyNTUwLCJpYXQiOjE3ODkzNzkzNTAsIm5vbmNlIjoiOVNxU0QyYWhUa0c3ajFRYkQ4cVZqQSIsImF0X2hhc2giOiI5U3FTRDJhaFRrRzdqMVFiRDhxVmpBIiwibmFtZSI6IkFub255bW91cyIsInNjb3BlIjoiYW5vbnltb3VzIiwicHJvamVjdF9pZCI6InV3b25wb3J0YWxkYi1kOWdnb2NvaW02ODliMDVhZiIsIm1ldGEiOnsicGxhdGZvcm0iOiJQdWJsaXNoYWJsZUtleSJ9LCJyb2xlIjoiYW5vbiIsImlzX2Fub255bW91cyI6dHJ1ZSwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiYW5vbnltb3VzIiwicHJvdmlkZXJzIjpbImFub255bW91cyJdfSwidXNlcl9tZXRhZGF0YSI6eyJuYW1lIjoiQW5vbnltb3VzIn0sInVzZXJfdHlwZSI6IiIsImNsaWVudF90eXBlIjoiY2xpZW50X3VzZXIiLCJpc19zeXN0ZW1fYWRtaW4iOmZhbHNlfQ.a72MF0bB3AAkNtqtgHSJ8LodlXgZlUPgIPq9ySy06CAat0UOkRYxtjyIx5HBnv7mELMUp7Ki1owOJ9jzSKPEAm9sc9UrQOki9_FGmorHEQ7_innaqMOW_C6xnkGw4PzNZKEEuZQz_WNGVb1-_T1FLB7qK5mUxbt_Kf4Yb-XaxBtQzpASymTkj2i6UdyfP0f8mPw4fuSv2U-54UUzJg0gUYWjKlDKDqG2FadBlIv36QlMO7RvG8H8H43VtAURm48wXhUKtZ_yzuJv3IIHAn_o7evDMrIaoU7BW1xFJsTqvjKtZ9fV-F5z0nO_tFfTp09vqCoCKW0jV_R-ai8ck19vPQ"
-  });
-  // Sign in anonymously once so requests carry a valid role for the RLS policy.
-  var cbAuthReady = cbApp.auth.signInAnonymously().catch(function(err){
-    console.error("CloudBase anonymous sign-in failed:", err);
-  });
-  var cbDb = cbApp.rdb();
+  var cbApp = supabase.createClient(
+    "https://dhzeiltsopigrzzdtmol.supabase.co",
+    "sb_publishable_hFU52cdvMHYq2a3Vz-tHzg_PMeoI_9w"
+  );
+  // The publishable key already carries the "anon" role used by our RLS policy, no sign-in needed.
+  var cbAuthReady = Promise.resolve();
+  var cbDb = cbApp;
 </script>
 
 <script>
